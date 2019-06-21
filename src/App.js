@@ -1,17 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import AppBar from '@material-ui/core/AppBar';
-import Toolbar from '@material-ui/core/Toolbar';
-import Typography from '@material-ui/core/Typography';
-import InputBase from '@material-ui/core/InputBase';
-import { fade, makeStyles } from '@material-ui/core/styles';
+
+// my components
+import DataCards from './components/DataCards';
+
+//material ui dependencies
+import { 
+  AppBar
+  , FormControl
+  , InputBase
+  , InputLabel
+  , MenuItem
+  , Select
+  , Toolbar
+  , Typography  } from '@material-ui/core'
 import SearchIcon from '@material-ui/icons/Search';
-import Card from '@material-ui/core/Card';
-import CardActions from '@material-ui/core/CardActions';
-import CardContent from '@material-ui/core/CardContent';
-import Button from '@material-ui/core/Button';
+import { fade, makeStyles } from '@material-ui/core/styles';
 
-
+// this uses the themeing from material ui and creates what 
+// is needed for the `classes` object used to style components
+// you can add a class here and use it in the JSX below
 const useStyles = makeStyles(theme => ({
     root: {
       flexGrow: 1,
@@ -60,61 +68,59 @@ const useStyles = makeStyles(theme => ({
         },
       },
     },
-    card: {
-        margin: theme.spacing(1,1,1,1)
-    },
-    title: {
-        fontSize: 14,
+    select: {
+      backgroundColor: 'white',
+      width: '200px',
+      height: '63px',
+      padding: '20px',
+      marginBottom: '15px',
+      marginLeft: '20px'
     }
   }));
 
  function App() {
-    const [searchString, setSearchString] = useState("react");
+    const [searchString, setSearchString] = useState("React");
     const [data, setData] = useState({hits: []});
-    let [delay, setDelay] = useState(1000);
+    
+    const now = new Date();
 
-    console.log("hey daata", data);
-    
-    function formatDate(date) {
-        var d = new Date(date),
-            month = '' + (d.getMonth() + 1),
-            day = '' + d.getDate(),
-            year = d.getFullYear();
-    
-        if (month.length < 2) month = '0' + month;
-        if (day.length < 2) day = '0' + day;
-    
-        return [year, month, day].join('-');
+    //years are for the Recency Select component
+    const years = [];
+    for(let yearsAgo=0; yearsAgo < 5; yearsAgo++){
+      years.push(now.getFullYear() - yearsAgo);
     }
-
+    const [recency, setRecency] = useState(years.pop());
+    
     async function fetchData() {
-        const result = await axios('https://hn.algolia.com/api/v1/search?query=' + searchString);
-        setData(result.data);
+        const unfilteredResult = await axios('https://hn.algolia.com/api/v1/search?query=' + searchString);
+        // only show items that are recent to a given year
+        console.log("HERE",unfilteredResult.data);
+        unfilteredResult.data.hits = unfilteredResult.data.hits.filter(item => new Date(item.created_at).getFullYear() > new Date(recency) )
+        setData(unfilteredResult.data);
     }
 
     useEffect(() => {
  
         fetchData();
         return() => {};
-    }, [searchString]);
+    }, [searchString, recency]);
 
     useEffect(() => {
-        const timerId = setInterval( () => fetchData(), 60000);
-
+        const timerId = setInterval( () => fetchData(), 6000);
+        
         return function cleanup(){
             clearInterval(timerId);
         }
     }, );
 
-
-
     const classes = useStyles();
+
     return(
     <div className={classes.root}>
         <AppBar position="static">
           <Toolbar>
             <Typography className={classes.title} variant="h6" noWrap>
-              React Reddit
+                Recent {searchString} Reader
             </Typography>
             <div className={classes.search}>
               <div className={classes.searchIcon}>
@@ -131,31 +137,35 @@ const useStyles = makeStyles(theme => ({
                 onChange={(e) => setSearchString(event.target.value)}
               />
             </div>
+            <FormControl variant="filled">
+                    <InputLabel
+                      style={{
+                        color: "black",
+                        paddingTop: 15,
+                        marginLeft: "20px"
+                      }}
+                    >
+                      Recency
+                    </InputLabel>
+                    <Select
+                      className={classes.select}
+                      value={recency}
+                      onChange={event => setRecency(event.target.value)}
+                    >
+                      {years.map((year, index) => {
+                        return (
+                          <MenuItem key={index} value={year}>
+                            {year}
+                          </MenuItem>
+                        );
+                      })}
+                    </Select>
+                  </FormControl>
           </Toolbar>
         </AppBar>
-        {/* {JSON.stringify(data.hits)} */}
-        {data.hits.map(item => (
-        <Card className={classes.card} raised={true}>
-      <CardContent>
-        <Typography className={classes.title} color="textSecondary" gutterBottom>
-        {item.author}
-        </Typography>
-        <Typography variant="h5" component="h2">
-        {item.title}
-        </Typography>
-        <Typography className={classes.pos} color="textSecondary">
-        {formatDate(item.created_at)}
-        </Typography>
-        <Typography variant="body2" component="p">
-        </Typography>
-      </CardContent>
-      <CardActions>
-        <Button size="small" href={item.url}>Learn More</Button>
-      </CardActions>
-    </Card>
-     ))}
-    </div>
-      
+        {JSON.stringify(data)}
+        <DataCards data={data}></DataCards>
+    </div>  
     )
 }
 
